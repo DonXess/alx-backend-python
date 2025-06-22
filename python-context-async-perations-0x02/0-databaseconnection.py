@@ -1,25 +1,42 @@
-import sqlite3  # For example, we use SQLite for ease of example, you can change it to any other database
+import sqlite3
 
 class DatabaseConnection:
-    def __init__(self, db_name):
+    """Custom class-based context manager for database connections"""
+    
+    def __init__(self, db_name='users.db'):
+        """Initialize with database name"""
         self.db_name = db_name
         self.connection = None
-
+    
     def __enter__(self):
-        # Open database connection
+        """Open database connection when entering the context"""
+        print(f"Opening connection to {self.db_name}")
         self.connection = sqlite3.connect(self.db_name)
-        return self.connection.cursor()  # We will return the cursor to use it for inquiries.
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # Close the connection to the base whether an error occurred or not.
+        return self.connection
+    
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Close database connection when exiting the context"""
         if self.connection:
-            self.connection.commit()  # We will delete any changes before closing.
+            if exc_type is not None:
+                # If an exception occurred, rollback any uncommitted changes
+                print(f"Exception occurred: {exc_value}")
+                self.connection.rollback()
+            else:
+                # If no exception, commit any pending changes
+                self.connection.commit()
+            
+            print(f"Closing connection to {self.db_name}")
             self.connection.close()
+        
+        # Return False to propagate any exceptions
+        return False
 
-
-if __name__ == "__main__":
-    with DatabaseConnection("my_database.db") as cursor:
-        cursor.execute("SELECT * FROM users")
-        rows = cursor.fetchall()
-        for row in rows:
-            print(row)
+# Using the context manager with the 'with' statement
+with DatabaseConnection() as conn:
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users")
+    results = cursor.fetchall()
+    
+    print("Query results:")
+    for row in results:
+        print(row)
